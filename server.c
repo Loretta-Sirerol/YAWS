@@ -1,4 +1,5 @@
 #include "server.h"
+#include <stdlib.h>
 
 const char *get_content_type(const char *);
 
@@ -101,7 +102,8 @@ int main(int argc, char **argv) {
 const char *get_content_type(const char *path) {
   char *file_extension = strrchr(path, '.');
   char *delimiter = "    ";
-  char static mime_type[128] = "application/octet-stream";
+  char *mime_type = calloc(128, sizeof(char));
+  mime_type = "application/octet-stream";
   char line[128];
   char *token;
   file_extension++;
@@ -112,14 +114,14 @@ const char *get_content_type(const char *path) {
       if (token != (void *)0) {
         if (strcmp(token, file_extension) == 0) {
           token = strtok(NULL, delimiter);
-          strcpy(mime_type, token);
-          break;
+          mime_type = token;
+          fclose(mime_types_ptr);
+          mime_type[strcspn(mime_type, "\r\n")] = 0;
+          return mime_type;
         }
       }
     }
   }
-  fclose(mime_types_ptr);
-  mime_type[strcspn(mime_type, "\r\n")] = 0;
   return mime_type;
 }
 
