@@ -1,8 +1,10 @@
 #include "server.h"
 #include "client.h"
 
-struct server *init() {
-  struct server *tmp = (struct server *)calloc(1, sizeof(struct server));
+struct server *
+init ()
+{
+  struct server *tmp = (struct server *) calloc (1, sizeof (struct server));
   tmp->start = &create_socket;
   tmp->get_client = &get_client;
   tmp->log_connections = &log_connections;
