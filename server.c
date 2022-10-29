@@ -1,132 +1,27 @@
 #include "server.h"
-#include <stdlib.h>
+#include "client.h"
 
-const char *get_content_type (const char *);
-
-int create_socket ();
-
-struct client
-{
-  socklen_t address_length;
-  struct sockaddr_storage address;
-  char address_buffer[128];
-  int socket;
-  char request[2048];		// HTTP Request with a maximum size of 2 MiB
-  int received;
-  struct client *next;
-};
-
-struct client *get_client (struct client **, int);
-
-void log_connections (struct client *);
-
-void drop_client (struct client **, struct client *);
-
-const char *get_client_address (struct client *);
-
-fd_set wait_for_client (struct client **, int);
-
-/* The server cannot or will not process the request due to something that is
- * perceived to be a client error */
-void send400 (struct client **, struct client *);
-
-/* The server can not find the requested resource. In the browser, this means
- * the URL is not recognized */
-void send404 (struct client **, struct client *);
-
-void serve (struct client **, struct client *, const char *);
-
-int
-main (int argc, char **argv)
-{
-  int server = create_socket ();
-  struct client *client_list = 0;
-  while (1)
-    {
-      fd_set read;
-      read = wait_for_client (&client_list, server);
-
-      if (FD_ISSET (server, &read))
-	{
-	  struct client *client = get_client (&client_list, -1);
-	  client->socket =
-	    accept (server, (struct sockaddr * restrict) &(client->address),
-		    (socklen_t * restrict) &(client->address_length));
-	  if (client->socket < 0)
-	    {
-	      fprintf (stderr, "accept() failed with error number %d \n",
-		       errno);
-	      fprintf (stdout, "%s\n", strerror (errno));
-	      return errno;
-	    }
-	  log_connections (client);
-	}
-      struct client *client = client_list;
-      while (client)
-	{
-	  struct client *new_client = client->next;
-	  if (FD_ISSET (client->socket, &read))
-	    {
-	      if (2048 == client->received)
-		{
-		  send400 (&client_list, client);
-		  client = new_client;
-		  continue;
-		}
-	      int r =
-		recv (client->socket, client->request + client->received,
-		      2048 - client->received, 0);
-	      if (r < 1)
-		{
-		  fprintf (stderr, "Unexpected disconnect from %s\n",
-			   get_client_address (client));
-		  drop_client (&client_list, client);
-		}
-	      else
-		{
-		  /* HTTP HEADER PARSER */
-		  client->received += r;
-		  client->request[client->received] = 0;
-		  char *q = strstr (client->request, "\r\n\r\n");
-		  if (q)
-		    {
-		      *q = 0;
-		      if (strncmp ("GET /", client->request, 5))
-			{
-			  send400 (&client_list, client);
-			}
-		      else
-			{
-			  char *path = client->request + 4;
-			  char *end_path = strstr (path, " ");
-			  if (!end_path)
-			    {
-			      send400 (&client_list, client);
-			    }
-			  else
-			    {
-			      *end_path = 0;
-			      serve (&client_list, client, path);
-			    }
-			}
-		    }
-		}
-	    }
-	  client = new_client;
-	}
-    }
-  fprintf (stdout, "Shuting down server NOW...\n");
-  close (server);
-  return 0;
+struct server *init() {
+  struct server *tmp = (struct server *)calloc(1, sizeof(struct server));
+  tmp->start = &create_socket;
+  tmp->get_client = &get_client;
+  tmp->log_connections = &log_connections;
+  tmp->drop_client = &drop_client;
+  tmp->get_client_address = get_client_address;
+  tmp->wait_for_client = wait_for_client;
+  tmp->send400 = &send400;
+  tmp->send404 = &send404;
+  tmp->serve = &serve;
+  return tmp;
 }
+
 
 const char *
 get_content_type (const char *path)
 {
   char *file_extension = strrchr (path, '.');
   char *delimiter = "    ";
-  char *mime_type = calloc (128, sizeof (char));
-  mime_type = "application/octet-stream";
+  static char mime_type[128] = "application/octet-stream";
   char line[128];
   char *token;
   file_extension++;
@@ -141,19 +36,19 @@ get_content_type (const char *path)
 	      if (strcmp (token, file_extension) == 0)
 		{
 		  token = strtok (NULL, delimiter);
-		  mime_type = token;
-		  fclose (mime_types_ptr);
+		  strcpy (mime_type, token);
 		  mime_type[strcspn (mime_type, "\r\n")] = 0;
-		  return mime_type;
+		  break;
 		}
 	    }
 	}
     }
+  fclose (mime_types_ptr);
   return mime_type;
 }
 
 int
-create_socket ()
+create_socket (void)
 {
   fprintf (stdout, "Configuring local address... \n");
   struct addrinfo hints;
