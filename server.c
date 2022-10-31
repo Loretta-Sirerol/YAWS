@@ -271,7 +271,7 @@ serve (struct client **client_list, struct client *target_client,
       return;
     }
   else if (strstr (path_to_resource, "..") || strstr (path_to_resource, "~")
-	   || strstr (path_to_resource, "$HOME$"))
+	   || strstr (path_to_resource, "$HOME$") || !strrchr(path_to_resource, '.'))
     {
       send404 (client_list, target_client);
       return;
@@ -280,7 +280,7 @@ serve (struct client **client_list, struct client *target_client,
   char absolute_path[128];
   sprintf (absolute_path, "public%s", path_to_resource);
 
-  FILE *file = fopen (absolute_path, "rb");
+  FILE *file = fopen (absolute_path, "r");
 
   if (file == (void *) 0)
     {
