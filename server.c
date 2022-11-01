@@ -240,18 +240,88 @@ wait_for_client (struct client **client_list, int server)
 void
 send400 (struct client **client_list, struct client *target_client)
 {
-  const char *response = "HTTP/1.1 400 Bad Request\r\n"
-    "Connection: close\r\n" "Content-Length: 11\r\n\r\nBad Request";
-  send (target_client->socket, response, strlen (response), 0);
+  FILE *file = fopen ("public/400.html", "r");
+  if (file == (void *) 0)
+    {
+      const char *response = "HTTP/1.1 400 Bad Request\r\n"
+	"Connection: close\r\n" "Content-Length: 11\r\n\r\nBad Request";
+      send (target_client->socket, response, strlen (response), 0);
+      drop_client (client_list, target_client);
+      return;
+    }
+  fseek (file, 0L, SEEK_END);
+  size_t cl = ftell (file);
+  rewind (file);
+
+  char buffer[1024];
+
+  sprintf (buffer, "HTTP/1.1 400 Bad Request\r\n");
+  send (target_client->socket, buffer, strlen (buffer), 0);
+
+  sprintf (buffer, "Connection: close\r\n");
+  send (target_client->socket, buffer, strlen (buffer), 0);
+
+  sprintf (buffer, "Content-Length: %zu\r\n", cl);
+  send (target_client->socket, buffer, strlen (buffer), 0);
+
+  sprintf (buffer, "Content-Type: %s\r\n", "text/html");
+  send (target_client->socket, buffer, strlen (buffer), 0);
+
+  sprintf (buffer, "\r\n");
+  send (target_client->socket, buffer, strlen (buffer), 0);
+
+  int r = fread (buffer, 1, 1024, file);
+  while (r)
+    {
+      send (target_client->socket, buffer, r, 0);
+      r = fread (buffer, 1, 1024, file);
+    }
+
+  fclose (file);
   drop_client (client_list, target_client);
 }
 
 void
 send404 (struct client **client_list, struct client *target_client)
 {
-  const char *response = "HTTP/1.1 404 Not Found\r\n"
-    "Connection: close\r\n" "Content-Length: 9\r\n\r\nNot Found";
-  send (target_client->socket, response, strlen (response), 0);
+  FILE *file = fopen ("public/404.html", "r");
+  if (file == (void *) 0)
+    {
+      const char *response = "HTTP/1.1 404 Not Found\r\n"
+	"Connection: close\r\n" "Content-Length: 9\r\n\r\nNot Found";
+      send (target_client->socket, response, strlen (response), 0);
+      drop_client (client_list, target_client);
+      return;
+    }
+  fseek (file, 0L, SEEK_END);
+  size_t cl = ftell (file);
+  rewind (file);
+
+  char buffer[1024];
+
+  sprintf (buffer, "HTTP/1.1 404 Bad Request\r\n");
+  send (target_client->socket, buffer, strlen (buffer), 0);
+
+  sprintf (buffer, "Connection: close\r\n");
+  send (target_client->socket, buffer, strlen (buffer), 0);
+
+  sprintf (buffer, "Content-Length: %zu\r\n", cl);
+  send (target_client->socket, buffer, strlen (buffer), 0);
+
+  sprintf (buffer, "Content-Type: %s\r\n", "text/html");
+  send (target_client->socket, buffer, strlen (buffer), 0);
+
+  sprintf (buffer, "\r\n");
+  send (target_client->socket, buffer, strlen (buffer), 0);
+
+  int r = fread (buffer, 1, 1024, file);
+  while (r)
+    {
+      send (target_client->socket, buffer, r, 0);
+      r = fread (buffer, 1, 1024, file);
+    }
+
+  fclose (file);
   drop_client (client_list, target_client);
 }
 
@@ -271,7 +341,8 @@ serve (struct client **client_list, struct client *target_client,
       return;
     }
   else if (strstr (path_to_resource, "..") || strstr (path_to_resource, "~")
-	   || strstr (path_to_resource, "$HOME$") || !strrchr(path_to_resource, '.'))
+	   || strstr (path_to_resource, "$HOME$")
+	   || !strrchr (path_to_resource, '.'))
     {
       send404 (client_list, target_client);
       return;
