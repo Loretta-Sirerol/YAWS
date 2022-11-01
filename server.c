@@ -1,3 +1,15 @@
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <netdb.h>
+#include <unistd.h>
+#include <errno.h>
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
 #include "server.h"
 #include "client.h"
 
@@ -201,7 +213,7 @@ drop_client (struct client **client_list, struct client *target_client)
 const char *
 get_client_address (struct client *client)
 {
-  getnameinfo ((struct sockaddr * restrict) &client->address,
+  getnameinfo ((struct sockaddr *) &client->address,
 	       client->address_length, client->address_buffer,
 	       sizeof (client->address_buffer), 0, 0, NI_NUMERICHOST);
   return client->address_buffer;

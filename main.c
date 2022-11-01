@@ -1,3 +1,8 @@
+#include <errno.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+
 #include "client.h"
 #include "server.h"
 
@@ -17,9 +22,9 @@ main (void)
 	  struct client *client = srv->get_client (&client_list, -1);
 	  client->socket = accept (srv->server_socket,
 				   (struct sockaddr *
-				    restrict) &(client->address),
+				    ) &(client->address),
 				   (socklen_t *
-				    restrict) &(client->address_length));
+				    ) &(client->address_length));
 	  if (client->socket < 0)
 	    {
 	      fprintf (stderr, "accept() failed with error number %d \n",
