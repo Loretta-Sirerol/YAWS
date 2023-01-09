@@ -2,13 +2,17 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+#include <signal.h>
 
 #include "client.h"
 #include "server.h"
 
+void handler(void);
+
 int
 main (void)
 {
+  signal(SIGPIPE, handler);
   struct server *srv = init ();
   srv->server_socket = srv->start ();
   struct client *client_list = 0;
@@ -91,4 +95,10 @@ main (void)
   fprintf (stdout, "Shuting down server NOW...\n");
   close (srv->server_socket);
   return 0;
+}
+
+void handler(void)
+{
+  fprintf(stdout, "Client closed the connection before\n we could send all the data\n");
+  fprintf(stderr, "%i : %s\n",errno, strerror(errno));
 }
